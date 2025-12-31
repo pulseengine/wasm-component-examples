@@ -56,57 +56,57 @@ jobs:
 
           mkdir -p "${RELEASE_DIR}/c" "${RELEASE_DIR}/cpp" "${RELEASE_DIR}/rust"
 
-          # Find all built WASM files
-          echo "=== Finding all WASM files ==="
-          find bazel-out -name "*.wasm" -type f 2>/dev/null | head -50
-
-          # Collect C components (use find for more reliable collection)
+          # Use bazel cquery to reliably find built WASM files
           echo "=== Collecting C components ==="
-          for name in hello_c_debug hello_c_release; do
-            f=$(find bazel-out -name "${name}.wasm" -type f 2>/dev/null | head -1)
-            if [ -n "$f" ]; then
+          for f in $(bazel cquery --output=files '//c:all' 2>/dev/null); do
+            if [[ "$f" == *.wasm ]]; then
               echo "Found: $f"
               cp "$f" "${RELEASE_DIR}/c/"
             fi
           done
 
-          # Collect C++ components
           echo "=== Collecting C++ components ==="
-          for name in hello_cpp_debug hello_cpp_release; do
-            f=$(find bazel-out -name "${name}.wasm" -type f 2>/dev/null | head -1)
-            if [ -n "$f" ]; then
+          for f in $(bazel cquery --output=files '//cpp:all' 2>/dev/null); do
+            if [[ "$f" == *.wasm ]]; then
               echo "Found: $f"
               cp "$f" "${RELEASE_DIR}/cpp/"
             fi
           done
 
-          # Collect Rust CLI components
           echo "=== Collecting Rust CLI components ==="
-          for name in hello_rust calculator datetime; do
-            f=$(find bazel-out -name "${name}.wasm" -type f 2>/dev/null | head -1)
-            if [ -n "$f" ]; then
+          for target in hello_rust calculator datetime; do
+            f=$(bazel cquery --output=files "//rust:${target}" 2>/dev/null | head -1)
+            if [ -n "$f" ] && [[ "$f" == *.wasm ]]; then
               echo "Found: $f"
               cp "$f" "${RELEASE_DIR}/rust/"
             fi
           done
 
-          # Collect Rust YOLO components (profile-based naming)
           echo "=== Collecting Rust YOLO components ==="
           for profile in debug release; do
-            # Try different naming patterns
-            for pattern in "yolo_inference_${profile}.wasm" "yolo_inference_wasm_lib_${profile}.wasm" "yolo_inference_*${profile}*.wasm"; do
-              f=$(find bazel-out -name "$pattern" -type f 2>/dev/null | head -1)
-              if [ -n "$f" ]; then
-                echo "Found: $f"
-                cp "$f" "${RELEASE_DIR}/rust/yolo_inference_${profile}.wasm"
-                break
-              fi
-            done
+            # Query for specific profile targets
+            f=$(bazel cquery --output=files "//rust:yolo_inference_${profile}" 2>/dev/null | grep '\.wasm$' | head -1)
+            if [ -n "$f" ]; then
+              echo "Found: $f"
+              cp "$f" "${RELEASE_DIR}/rust/yolo_inference_${profile}.wasm"
+            fi
           done
 
           # List what we collected
           echo "=== Collected artifacts ==="
           find "${RELEASE_DIR}" -name "*.wasm" -type f
+
+          # Verify we have files
+          WASM_COUNT=$(find "${RELEASE_DIR}" -name "*.wasm" -type f | wc -l)
+          echo "Total WASM files collected: $WASM_COUNT"
+          if [ "$WASM_COUNT" -eq 0 ]; then
+            echo "ERROR: No WASM files were collected!"
+            echo "Listing bazel-out structure:"
+            find bazel-out -name "*.wasm" -type f 2>/dev/null | head -20 || echo "No files in bazel-out"
+            echo "Listing bazel-bin structure:"
+            find bazel-bin -name "*.wasm" -type f 2>/dev/null | head -20 || echo "No files in bazel-bin"
+            exit 1
+          fi
 
           # Create archive
           ARCHIVE_NAME="wasm-components-${VERSION}.tar.gz"
