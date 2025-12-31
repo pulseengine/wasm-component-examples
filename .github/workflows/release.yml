@@ -96,13 +96,20 @@ jobs:
           echo "=== Collecting Rust YOLO components ==="
           for profile in debug release; do
             echo "Collecting yolo_inference_${profile}..."
-            # Use bazel cquery to get the exact output path
-            wasm_file=$(bazel cquery --output=files "//rust:yolo_inference_${profile}" 2>/dev/null | grep '\.wasm$' | head -1)
-            if [ -n "$wasm_file" ]; then
+            # The actual WASM is produced by yolo_inference_wasm_lib_<profile>_wasm_base
+            wasm_file=$(bazel cquery --output=files "//rust:yolo_inference_wasm_lib_${profile}_wasm_base" 2>/dev/null | head -1)
+            if [ -n "$wasm_file" ] && [ -f "$wasm_file" ]; then
               echo "Found via cquery: $wasm_file"
               cp -L "$wasm_file" "${RELEASE_DIR}/rust/yolo_inference_${profile}.wasm"
             else
-              echo "WARNING: Could not find yolo_inference_${profile}.wasm"
+              # Fallback: try the alias target
+              wasm_file=$(bazel cquery --output=files "//rust:yolo_inference_${profile}" 2>/dev/null | grep '\.wasm$' | head -1)
+              if [ -n "$wasm_file" ] && [ -f "$wasm_file" ]; then
+                echo "Found via alias: $wasm_file"
+                cp -L "$wasm_file" "${RELEASE_DIR}/rust/yolo_inference_${profile}.wasm"
+              else
+                echo "WARNING: Could not find yolo_inference_${profile}.wasm"
+              fi
             fi
           done
 
