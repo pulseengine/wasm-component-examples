@@ -75,20 +75,45 @@ jobs:
 
           echo "=== Collecting Rust CLI components ==="
           for target in hello_rust calculator datetime; do
+            echo "Querying //rust:${target}..."
+            bazel cquery --output=files "//rust:${target}" 2>&1 | head -5 || true
             f=$(bazel cquery --output=files "//rust:${target}" 2>/dev/null | head -1)
-            if [ -n "$f" ] && [[ "$f" == *.wasm ]]; then
-              echo "Found: $f"
-              cp "$f" "${RELEASE_DIR}/rust/"
+            echo "Result: '$f'"
+            if [ -n "$f" ]; then
+              if [[ "$f" == *.wasm ]]; then
+                echo "Found WASM: $f"
+                cp "$f" "${RELEASE_DIR}/rust/"
+              else
+                echo "Not a WASM file, searching in runfiles..."
+                # rust_wasm_binary creates a runfiles directory, look for the wasm there
+                wasm_in_runfiles=$(find "$(dirname "$f")" -name "*.wasm" -type f 2>/dev/null | head -1)
+                if [ -n "$wasm_in_runfiles" ]; then
+                  echo "Found in runfiles: $wasm_in_runfiles"
+                  cp "$wasm_in_runfiles" "${RELEASE_DIR}/rust/${target}.wasm"
+                fi
+              fi
             fi
           done
 
           echo "=== Collecting Rust YOLO components ==="
           for profile in debug release; do
-            # Query for specific profile targets
+            echo "Querying //rust:yolo_inference_${profile}..."
+            # Try direct target first
             f=$(bazel cquery --output=files "//rust:yolo_inference_${profile}" 2>/dev/null | grep '\.wasm$' | head -1)
+            if [ -z "$f" ]; then
+              # Try the internal wasm_lib target naming
+              f=$(bazel cquery --output=files "//rust:yolo_inference_wasm_lib_${profile}_wasm_base" 2>/dev/null | grep '\.wasm$' | head -1)
+            fi
             if [ -n "$f" ]; then
               echo "Found: $f"
               cp "$f" "${RELEASE_DIR}/rust/yolo_inference_${profile}.wasm"
+            else
+              echo "Not found, trying find..."
+              f=$(find bazel-out -name "*yolo_inference*${profile}*.wasm" -type f 2>/dev/null | head -1)
+              if [ -n "$f" ]; then
+                echo "Found via find: $f"
+                cp "$f" "${RELEASE_DIR}/rust/yolo_inference_${profile}.wasm"
+              fi
             fi
           done
 
@@ -99,13 +124,18 @@ jobs:
           # Verify we have files
           WASM_COUNT=$(find "${RELEASE_DIR}" -name "*.wasm" -type f | wc -l)
           echo "Total WASM files collected: $WASM_COUNT"
+
+          # Debug: show all available WASM files
+          echo "=== All available WASM files in bazel-out ==="
+          find bazel-out -name "*.wasm" -type f 2>/dev/null | head -30 || echo "No files in bazel-out"
+
           if [ "$WASM_COUNT" -eq 0 ]; then
             echo "ERROR: No WASM files were collected!"
-            echo "Listing bazel-out structure:"
-            find bazel-out -name "*.wasm" -type f 2>/dev/null | head -20 || echo "No files in bazel-out"
-            echo "Listing bazel-bin structure:"
-            find bazel-bin -name "*.wasm" -type f 2>/dev/null | head -20 || echo "No files in bazel-bin"
             exit 1
+          fi
+
+          if [ "$WASM_COUNT" -lt 4 ]; then
+            echo "WARNING: Expected at least 4 WASM files, got $WASM_COUNT"
           fi
 
           # Create archive
