@@ -56,26 +56,57 @@ jobs:
 
           mkdir -p "${RELEASE_DIR}/c" "${RELEASE_DIR}/cpp" "${RELEASE_DIR}/rust"
 
-          # Collect C components
-          for f in $(bazel cquery --output=files '//c:all' 2>/dev/null); do
-            if [[ "$f" == *.wasm ]]; then
+          # Find all built WASM files
+          echo "=== Finding all WASM files ==="
+          find bazel-out -name "*.wasm" -type f 2>/dev/null | head -50
+
+          # Collect C components (use find for more reliable collection)
+          echo "=== Collecting C components ==="
+          for name in hello_c_debug hello_c_release; do
+            f=$(find bazel-out -name "${name}.wasm" -type f 2>/dev/null | head -1)
+            if [ -n "$f" ]; then
+              echo "Found: $f"
               cp "$f" "${RELEASE_DIR}/c/"
             fi
           done
 
           # Collect C++ components
-          for f in $(bazel cquery --output=files '//cpp:all' 2>/dev/null); do
-            if [[ "$f" == *.wasm ]]; then
+          echo "=== Collecting C++ components ==="
+          for name in hello_cpp_debug hello_cpp_release; do
+            f=$(find bazel-out -name "${name}.wasm" -type f 2>/dev/null | head -1)
+            if [ -n "$f" ]; then
+              echo "Found: $f"
               cp "$f" "${RELEASE_DIR}/cpp/"
             fi
           done
 
-          # Collect Rust components
-          for f in $(bazel cquery --output=files '//rust:all' 2>/dev/null); do
-            if [[ "$f" == *.wasm ]]; then
+          # Collect Rust CLI components
+          echo "=== Collecting Rust CLI components ==="
+          for name in hello_rust calculator datetime; do
+            f=$(find bazel-out -name "${name}.wasm" -type f 2>/dev/null | head -1)
+            if [ -n "$f" ]; then
+              echo "Found: $f"
               cp "$f" "${RELEASE_DIR}/rust/"
             fi
           done
+
+          # Collect Rust YOLO components (profile-based naming)
+          echo "=== Collecting Rust YOLO components ==="
+          for profile in debug release; do
+            # Try different naming patterns
+            for pattern in "yolo_inference_${profile}.wasm" "yolo_inference_wasm_lib_${profile}.wasm" "yolo_inference_*${profile}*.wasm"; do
+              f=$(find bazel-out -name "$pattern" -type f 2>/dev/null | head -1)
+              if [ -n "$f" ]; then
+                echo "Found: $f"
+                cp "$f" "${RELEASE_DIR}/rust/yolo_inference_${profile}.wasm"
+                break
+              fi
+            done
+          done
+
+          # List what we collected
+          echo "=== Collected artifacts ==="
+          find "${RELEASE_DIR}" -name "*.wasm" -type f
 
           # Create archive
           ARCHIVE_NAME="wasm-components-${VERSION}.tar.gz"
@@ -84,32 +115,44 @@ jobs:
           echo "archive_name=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
           echo "release_dir=$RELEASE_DIR" >> $GITHUB_OUTPUT
 
+          echo ""
           echo "Created release archive:"
           ls -la "$ARCHIVE_NAME"
           echo ""
           echo "Contents:"
           tar -tzvf "$ARCHIVE_NAME"
 
-      - name: Install wasmsign2
+      - name: Build wsc for signing
         run: |
-          # Install wasmsign2 for component signing
-          cargo install wasmsign2 --locked
+          echo "Building wsc (WebAssembly Signature Component)..."
+          git clone --depth 1 https://github.com/pulseengine/wsc.git /tmp/wsc
+          cd /tmp/wsc
+          cargo build --release --bin wsc
+          sudo cp target/release/wsc /usr/local/bin/wsc
+          wsc --version || echo "wsc built successfully"
 
-      - name: Generate signing keys
-        run: |
-          # Generate ephemeral keys for this release
-          wasmsign2 keygen --public-key release.public --secret-key release.secret
-          echo "Generated signing keys"
-
-      - name: Sign release components
+      - name: Sign release components (keyless)
         run: |
           RELEASE_DIR="${{ steps.collect.outputs.release_dir }}"
 
-          # Sign all WASM files
+          echo "🔐 Signing WASM artifacts with wsc keyless signing..."
+          echo "   - Identity: GitHub Actions OIDC"
+          echo "   - Certificate: Short-lived from Fulcio (Sigstore)"
+          echo "   - Transparency: Logged in Rekor"
+          echo ""
+
+          # Sign all WASM files with keyless signing
           find "${RELEASE_DIR}" -name "*.wasm" | while read wasm_file; do
             echo "Signing: $wasm_file"
-            wasmsign2 sign --secret-key release.secret "$wasm_file" -o "${wasm_file%.wasm}.signed.wasm"
+            signed_file="${wasm_file%.wasm}.signed.wasm"
+            wsc sign --keyless \
+              --input-file "$wasm_file" \
+              --output-file "$signed_file"
+            # Replace original with signed version
+            mv "$signed_file" "$wasm_file"
           done
+
+          echo "✅ All WASM files signed with wsc (keyless)"
 
           # Create signed archive
           SIGNED_ARCHIVE="wasm-components-${{ steps.get_tag.outputs.tag_name }}-signed.tar.gz"
@@ -142,6 +185,13 @@ jobs:
           - `yolo_inference_debug.wasm` - YOLO detection (debug)
           - `yolo_inference_release.wasm` - YOLO detection (release)
 
+          ### Security
+
+          All components are signed using [wsc](https://github.com/pulseengine/wsc) with keyless Sigstore signing:
+          - **Identity**: GitHub Actions OIDC
+          - **Certificate**: Short-lived from Fulcio
+          - **Transparency**: Logged in Rekor
+
           ### Running Components
 
           ```bash
@@ -160,9 +210,12 @@ jobs:
 
           ### Verification
 
-          All signed components can be verified with the included public key:
+          Signatures can be verified using wsc:
           ```bash
-          wasmsign2 verify --public-key release.public component.signed.wasm
+          wsc verify --keyless \
+            --identity "https://github.com/${{ github.repository }}" \
+            --issuer "https://token.actions.githubusercontent.com" \
+            --input-file component.wasm
           ```
           EOF
 
@@ -175,7 +228,6 @@ jobs:
           files: |
             ${{ steps.collect.outputs.archive_name }}
             wasm-components-${{ steps.get_tag.outputs.tag_name }}-signed.tar.gz
-            release.public
           draft: false
           prerelease: false
           generate_release_notes: true
