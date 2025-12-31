@@ -1,0 +1,187 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release (e.g., v1.0.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build-release:
+    name: Build Release Components
+    runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.get_tag.outputs.tag_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get tag name
+        id: get_tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag_name=${{ inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install Bazelisk
+        run: |
+          curl -LO https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+          chmod +x bazelisk-linux-amd64
+          sudo mv bazelisk-linux-amd64 /usr/local/bin/bazel
+
+      - name: Build all components
+        run: bazel build //...
+
+      - name: Collect release artifacts
+        id: collect
+        run: |
+          TAG_NAME="${{ steps.get_tag.outputs.tag_name }}"
+          VERSION=${TAG_NAME#v}
+          RELEASE_DIR="release-${VERSION}"
+
+          mkdir -p "${RELEASE_DIR}/c" "${RELEASE_DIR}/cpp" "${RELEASE_DIR}/rust"
+
+          # Collect C components
+          for f in $(bazel cquery --output=files '//c:all' 2>/dev/null); do
+            if [[ "$f" == *.wasm ]]; then
+              cp "$f" "${RELEASE_DIR}/c/"
+            fi
+          done
+
+          # Collect C++ components
+          for f in $(bazel cquery --output=files '//cpp:all' 2>/dev/null); do
+            if [[ "$f" == *.wasm ]]; then
+              cp "$f" "${RELEASE_DIR}/cpp/"
+            fi
+          done
+
+          # Collect Rust components
+          for f in $(bazel cquery --output=files '//rust:all' 2>/dev/null); do
+            if [[ "$f" == *.wasm ]]; then
+              cp "$f" "${RELEASE_DIR}/rust/"
+            fi
+          done
+
+          # Create archive
+          ARCHIVE_NAME="wasm-components-${VERSION}.tar.gz"
+          tar -czvf "$ARCHIVE_NAME" "${RELEASE_DIR}"
+
+          echo "archive_name=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
+          echo "release_dir=$RELEASE_DIR" >> $GITHUB_OUTPUT
+
+          echo "Created release archive:"
+          ls -la "$ARCHIVE_NAME"
+          echo ""
+          echo "Contents:"
+          tar -tzvf "$ARCHIVE_NAME"
+
+      - name: Install wasmsign2
+        run: |
+          # Install wasmsign2 for component signing
+          cargo install wasmsign2 --locked
+
+      - name: Generate signing keys
+        run: |
+          # Generate ephemeral keys for this release
+          wasmsign2 keygen --public-key release.public --secret-key release.secret
+          echo "Generated signing keys"
+
+      - name: Sign release components
+        run: |
+          RELEASE_DIR="${{ steps.collect.outputs.release_dir }}"
+
+          # Sign all WASM files
+          find "${RELEASE_DIR}" -name "*.wasm" | while read wasm_file; do
+            echo "Signing: $wasm_file"
+            wasmsign2 sign --secret-key release.secret "$wasm_file" -o "${wasm_file%.wasm}.signed.wasm"
+          done
+
+          # Create signed archive
+          SIGNED_ARCHIVE="wasm-components-${{ steps.get_tag.outputs.tag_name }}-signed.tar.gz"
+          tar -czvf "$SIGNED_ARCHIVE" "${RELEASE_DIR}"
+
+          echo "signed_archive=$SIGNED_ARCHIVE" >> $GITHUB_OUTPUT
+
+      - name: Generate Release Notes
+        run: |
+          TAG_NAME="${{ steps.get_tag.outputs.tag_name }}"
+          cat > RELEASE_NOTES.md << 'EOF'
+          ## WebAssembly Component Examples ${{ steps.get_tag.outputs.tag_name }}
+
+          This release contains WebAssembly components built with [rules_wasm_component](https://github.com/pulseengine/rules_wasm_component).
+
+          ### Components Included
+
+          **C Components:**
+          - `hello_c_debug.wasm` - Debug build
+          - `hello_c_release.wasm` - Release build (optimized)
+
+          **C++ Components:**
+          - `hello_cpp_debug.wasm` - Debug build
+          - `hello_cpp_release.wasm` - Release build (optimized)
+
+          **Rust Components:**
+          - `hello_rust.wasm` - Hello World CLI
+          - `calculator.wasm` - Arithmetic calculator
+          - `datetime.wasm` - Date/time display
+          - `yolo_inference_debug.wasm` - YOLO detection (debug)
+          - `yolo_inference_release.wasm` - YOLO detection (release)
+
+          ### Running Components
+
+          ```bash
+          # Install wasmtime
+          curl https://wasmtime.dev/install.sh -sSf | bash
+
+          # Run Rust CLI examples
+          wasmtime run hello_rust.wasm
+          wasmtime run calculator.wasm 8 + 8
+          wasmtime run datetime.wasm
+
+          # Run YOLO detection (requires ONNX model)
+          wasmtime run --dir . -S cli -S nn -S nn-graph=onnx::./models/yolov8n \
+            yolo_inference_release.wasm ./image.jpg
+          ```
+
+          ### Verification
+
+          All signed components can be verified with the included public key:
+          ```bash
+          wasmsign2 verify --public-key release.public component.signed.wasm
+          ```
+          EOF
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.get_tag.outputs.tag_name }}
+          name: Release ${{ steps.get_tag.outputs.tag_name }}
+          body_path: RELEASE_NOTES.md
+          files: |
+            ${{ steps.collect.outputs.archive_name }}
+            wasm-components-${{ steps.get_tag.outputs.tag_name }}-signed.tar.gz
+            release.public
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          make_latest: true
+
+      - name: Generate Provenance Attestation
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: ${{ steps.collect.outputs.archive_name }}

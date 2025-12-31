@@ -1,0 +1,12 @@
+package hello:cpp@1.0.0;
+
+/// A simple hello world interface
+interface greeter {
+    /// Prints hello and returns a greeting message
+    greet: func() -> string;
+}
+
+/// Hello world component
+world hello-cpp {
+    export greeter;
+}

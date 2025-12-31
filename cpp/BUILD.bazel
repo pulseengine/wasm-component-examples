@@ -1,0 +1,60 @@
+"""C++ Hello World WASI Component
+
+Demonstrates building a C++ WASI component with debug and release variants.
+"""
+
+load("@rules_wasm_component//cpp:defs.bzl", "cpp_component")
+load("@rules_wasm_component//wit:defs.bzl", "wit_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# Define WIT interface for the C++ component
+wit_library(
+    name = "hello_wit",
+    srcs = ["wit/hello.wit"],
+    package_name = "hello:cpp@1.0.0",
+    world = "hello-cpp",
+)
+
+# Debug build (no optimization, faster compile)
+cpp_component(
+    name = "hello_cpp_debug",
+    srcs = ["src/hello.cpp"],
+    cxx_std = "c++20",
+    enable_exceptions = False,
+    enable_rtti = False,
+    language = "cpp",
+    optimize = False,
+    validate_wit = False,
+    wit = ":hello_wit",
+    world = "hello-cpp",
+)
+
+# Release build (optimized)
+cpp_component(
+    name = "hello_cpp_release",
+    srcs = ["src/hello.cpp"],
+    cxx_std = "c++20",
+    enable_exceptions = False,
+    enable_rtti = False,
+    language = "cpp",
+    optimize = True,
+    validate_wit = False,
+    wit = ":hello_wit",
+    world = "hello-cpp",
+)
+
+# Alias for default (release)
+alias(
+    name = "hello_cpp",
+    actual = ":hello_cpp_release",
+)
+
+# All variants
+filegroup(
+    name = "all",
+    srcs = [
+        ":hello_cpp_debug",
+        ":hello_cpp_release",
+    ],
+)

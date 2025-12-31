@@ -1,0 +1,106 @@
+"""Rust WASI Component Examples
+
+Demonstrates building Rust WASI components with debug/release profiles,
+signing, and CLI tools.
+"""
+
+load("@rules_wasm_component//rust:defs.bzl", "rust_wasm_binary", "rust_wasm_component_bindgen")
+load("@rules_wasm_component//wit:defs.bzl", "wit_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# Profiles for component targets (debug + release)
+PROFILES = ["debug", "release"]
+
+# =============================================================================
+# Simple CLI Components (rust_wasm_binary)
+# =============================================================================
+
+# Hello World - basic WASI CLI component
+rust_wasm_binary(
+    name = "hello_rust",
+    srcs = ["src/main.rs"],
+    edition = "2021",
+)
+
+# Calculator - arithmetic operations from command line
+# Usage: calculator 8 + 8  -> "8 + 8 = 16"
+rust_wasm_binary(
+    name = "calculator",
+    srcs = ["src/calculator.rs"],
+    edition = "2021",
+)
+
+# DateTime greeting - shows current date and time
+# Output: "Hello Rust on December 9, 2025 at 14:30:45 UTC"
+rust_wasm_binary(
+    name = "datetime",
+    srcs = ["src/datetime.rs"],
+    edition = "2021",
+)
+
+# =============================================================================
+# YOLO Object Detection with WASI-NN (multi-profile component)
+# =============================================================================
+
+# Define WIT interface for YOLO component
+wit_library(
+    name = "yolo_wit",
+    srcs = ["wit/yolo.wit"],
+    package_name = "hello:yolo@1.0.0",
+    world = "yolo-detection",
+    deps = [
+        "@wasi_cli//:cli",
+        "@wasi_clocks//:clocks",
+        "@wasi_filesystem//:filesystem",
+        "@wasi_io//:streams",
+        "@wasi_nn//:nn",
+        "@wasi_random//:random",
+        "@wasi_sockets//:sockets",
+    ],
+)
+
+# Build YOLO inference component with debug and release profiles
+# Usage: wasmtime --dir . -S cli -S nn -S nn-graph=onnx::./models/yolov8n \
+#          yolo_inference_release.wasm <image.jpg>
+rust_wasm_component_bindgen(
+    name = "yolo_inference",
+    srcs = ["src/lib.rs", "src/yolo_inference.rs"],
+    profiles = PROFILES,
+    wit = ":yolo_wit",
+    deps = [
+        "@hello_crates//:image",
+    ],
+)
+
+# =============================================================================
+# Filegroups for CI/CD
+# =============================================================================
+
+# All CLI components
+filegroup(
+    name = "cli_components",
+    srcs = [
+        ":calculator",
+        ":datetime",
+        ":hello_rust",
+    ],
+)
+
+# All YOLO profiles
+filegroup(
+    name = "yolo_all",
+    srcs = [
+        ":yolo_inference_debug",
+        ":yolo_inference_release",
+    ],
+)
+
+# All Rust components
+filegroup(
+    name = "all",
+    srcs = [
+        ":cli_components",
+        ":yolo_all",
+    ],
+)

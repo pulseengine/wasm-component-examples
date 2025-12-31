@@ -1,0 +1,12 @@
+# Common Bazel settings for WebAssembly Component builds
+
+# Enable Bzlmod (the new module system)
+common --enable_bzlmod
+
+# Improve build output
+build --verbose_failures
+
+# macOS specific: Use local xcode
+build:macos --apple_crosstool_top=@local_config_apple_cc//:toolchain
+build:macos --crosstool_top=@local_config_apple_cc//:toolchain
+build:macos --host_crosstool_top=@local_config_apple_cc//:toolchain

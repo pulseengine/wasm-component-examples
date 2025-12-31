@@ -1,0 +1,27 @@
+# Bazel
+bazel-*
+.bazelrc.user
+
+# Claude Code
+.claude/
+
+# Models (large files - download separately)
+models/*.onnx
+models/*/model.onnx
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Rust
+target/
+
+# OS
+*.log

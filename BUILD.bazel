@@ -1,0 +1,48 @@
+"""WebAssembly Component Model Examples
+
+Demonstrates building WASI components in C, C++, and Rust using
+pulseengine/rules_wasm_component with Bazel.
+
+Examples:
+  - C/C++: Library components with debug/release builds
+  - Rust: CLI components (hello, calculator, datetime)
+  - Rust: WASI-NN ML inference (YOLO object detection) with profiles
+
+Build all:
+    bazel build //...
+
+Build release components only:
+    bazel build //:release_components
+"""
+
+package(default_visibility = ["//visibility:public"])
+
+# =============================================================================
+# Component Filegroups
+# =============================================================================
+
+# All components from each language
+filegroup(
+    name = "c_components",
+    srcs = ["//c:all"],
+)
+
+filegroup(
+    name = "cpp_components",
+    srcs = ["//cpp:all"],
+)
+
+filegroup(
+    name = "rust_components",
+    srcs = ["//rust:all"],
+)
+
+# All components (for CI)
+filegroup(
+    name = "all_components",
+    srcs = [
+        ":c_components",
+        ":cpp_components",
+        ":rust_components",
+    ],
+)

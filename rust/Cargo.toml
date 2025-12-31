@@ -1,0 +1,13 @@
+[package]
+name = "hello-components"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# wit-bindgen is provided by rules_wasm_component's @crates
+
+# Image decoding for JPEG/PNG support
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }

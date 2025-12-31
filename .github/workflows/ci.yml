@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  CI: true
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bazelisk
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            curl -LO https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+            chmod +x bazelisk-linux-amd64
+            sudo mv bazelisk-linux-amd64 /usr/local/bin/bazel
+          else
+            brew install bazelisk
+          fi
+
+      - name: Build all components
+        run: bazel build //...
+
+      - name: List built artifacts
+        run: |
+          echo "=== C Components ==="
+          bazel cquery --output=files '//c:all' 2>/dev/null || true
+          echo ""
+          echo "=== C++ Components ==="
+          bazel cquery --output=files '//cpp:all' 2>/dev/null || true
+          echo ""
+          echo "=== Rust Components ==="
+          bazel cquery --output=files '//rust:all' 2>/dev/null || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-components-${{ matrix.os }}
+          path: |
+            bazel-out/**/bin/**/*.wasm
+          retention-days: 7
+
+  test-rust-cli:
+    name: Test Rust CLI Components
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bazelisk
+        run: |
+          curl -LO https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+          chmod +x bazelisk-linux-amd64
+          sudo mv bazelisk-linux-amd64 /usr/local/bin/bazel
+
+      - name: Install Wasmtime
+        run: |
+          curl https://wasmtime.dev/install.sh -sSf | bash
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+
+      - name: Build Rust CLI components
+        run: bazel build //rust:cli_components
+
+      - name: Test hello_rust
+        run: |
+          WASM_FILE=$(bazel cquery --output=files //rust:hello_rust 2>/dev/null | head -1)
+          wasmtime run "$WASM_FILE"
+
+      - name: Test calculator
+        run: |
+          WASM_FILE=$(bazel cquery --output=files //rust:calculator 2>/dev/null | head -1)
+          OUTPUT=$(wasmtime run "$WASM_FILE" 8 + 8)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -q "8 + 8 = 16"
+
+      - name: Test datetime
+        run: |
+          WASM_FILE=$(bazel cquery --output=files //rust:datetime 2>/dev/null | head -1)
+          wasmtime run "$WASM_FILE"

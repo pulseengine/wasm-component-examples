@@ -1,0 +1,79 @@
+"""WebAssembly Component Model Hello World Examples
+
+Demonstrates building WASI CLI components in C, C++, and Rust using
+pulseengine/rules_wasm_component.
+"""
+
+module(
+    name = "hello_wasm_components",
+    version = "0.1.0",
+)
+
+# Core dependency - WebAssembly Component Model rules
+# Not in BCR yet, so use git_override
+bazel_dep(name = "rules_wasm_component", version = "1.0.0")
+
+git_override(
+    module_name = "rules_wasm_component",
+    remote = "https://github.com/pulseengine/rules_wasm_component.git",
+    branch = "main",  # cpp support added after v1.0.0
+)
+
+# Required transitive dependencies (pulled transitively by rules_wasm_component)
+bazel_dep(name = "rules_rust", version = "0.65.0")
+bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "platforms", version = "1.0.0")
+bazel_dep(name = "rules_cc", version = "0.2.14")
+bazel_dep(name = "rules_go", version = "0.59.0")
+bazel_dep(name = "rules_oci", version = "2.2.6")
+bazel_dep(name = "protobuf", version = "33.0")
+bazel_dep(name = "fmt", version = "11.0.2")
+bazel_dep(name = "nlohmann_json", version = "3.11.3")
+bazel_dep(name = "abseil-cpp", version = "20250814.0")
+bazel_dep(name = "spdlog", version = "1.12.0")
+
+# Override rules_rust to use the fixed version for wasm-component-ld
+git_override(
+    module_name = "rules_rust",
+    remote = "https://github.com/avrabe/rules_rust.git",
+    branch = "fix/add-missing-rustc-binaries",
+)
+
+# Rust toolchain setup for WASM targets
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+rust.toolchain(
+    edition = "2021",
+    extra_target_triples = [
+        "wasm32-wasip1",
+        "wasm32-wasip2",
+    ],
+    versions = ["1.91.1"],
+)
+use_repo(rust, "rust_toolchains")
+
+# WASI WIT interface definitions (pulled from rules_wasm_component)
+wasi_wit_ext = use_extension("@rules_wasm_component//wasm:extensions.bzl", "wasi_wit")
+wasi_wit_ext.init()
+use_repo(
+    wasi_wit_ext,
+    "wasi_cli",
+    "wasi_clocks",
+    "wasi_filesystem",
+    "wasi_http",
+    "wasi_io",
+    "wasi_random",
+    "wasi_sockets",
+    "wasi_nn",  # WASI Neural Network for ML inference
+)
+
+# Minimal crates for our project (wit-bindgen comes from rules_wasm_component)
+crate = use_extension("@rules_rust//crate_universe:extension.bzl", "crate")
+crate.from_cargo(
+    name = "hello_crates",
+    cargo_lockfile = "//rust:Cargo.lock",
+    manifests = ["//rust:Cargo.toml"],
+    supported_platform_triples = ["wasm32-wasip2", "aarch64-apple-darwin"],
+)
+use_repo(crate, "hello_crates", "crates")
+
+register_toolchains("@rust_toolchains//:all")

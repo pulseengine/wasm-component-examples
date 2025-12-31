@@ -1,0 +1,54 @@
+"""C Hello World WASI Component
+
+Demonstrates building a C WASI component with debug and release variants.
+"""
+
+load("@rules_wasm_component//cpp:defs.bzl", "cpp_component")
+load("@rules_wasm_component//wit:defs.bzl", "wit_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# Define WIT interface for the C component
+wit_library(
+    name = "hello_wit",
+    srcs = ["wit/hello.wit"],
+    package_name = "hello:c@1.0.0",
+    world = "hello-c",
+)
+
+# Debug build (no optimization, faster compile)
+cpp_component(
+    name = "hello_c_debug",
+    srcs = ["src/hello.c"],
+    language = "c",
+    optimize = False,
+    validate_wit = False,
+    wit = ":hello_wit",
+    world = "hello-c",
+)
+
+# Release build (optimized)
+cpp_component(
+    name = "hello_c_release",
+    srcs = ["src/hello.c"],
+    language = "c",
+    optimize = True,
+    validate_wit = False,
+    wit = ":hello_wit",
+    world = "hello-c",
+)
+
+# Alias for default (release)
+alias(
+    name = "hello_c",
+    actual = ":hello_c_release",
+)
+
+# All variants
+filegroup(
+    name = "all",
+    srcs = [
+        ":hello_c_debug",
+        ":hello_c_release",
+    ],
+)
