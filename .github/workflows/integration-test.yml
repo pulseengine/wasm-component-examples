@@ -1,0 +1,147 @@
+name: Integration Test
+
+# This workflow tests the examples against a specific version of rules_wasm_component.
+# It can be triggered:
+# 1. Manually via workflow_dispatch with a rules_ref parameter
+# 2. Via repository_dispatch from rules_wasm_component PRs
+# 3. On a schedule to catch breaking changes early
+
+on:
+  workflow_dispatch:
+    inputs:
+      rules_ref:
+        description: 'rules_wasm_component ref (branch, tag, or SHA)'
+        required: true
+        default: 'main'
+        type: string
+      rules_repo:
+        description: 'rules_wasm_component repository (org/repo)'
+        required: false
+        default: 'pulseengine/rules_wasm_component'
+        type: string
+
+  repository_dispatch:
+    types: [test-integration]
+
+  schedule:
+    # Run weekly on Sundays at 00:00 UTC to catch breaking changes
+    - cron: '0 0 * * 0'
+
+env:
+  CI: true
+
+jobs:
+  integration-test:
+    name: Integration Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - name: Checkout examples
+        uses: actions/checkout@v4
+
+      - name: Determine rules_wasm_component ref
+        id: rules-ref
+        run: |
+          # Priority: workflow_dispatch > repository_dispatch > default (main)
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            REF="${{ github.event.inputs.rules_ref }}"
+            REPO="${{ github.event.inputs.rules_repo }}"
+          elif [ "${{ github.event_name }}" == "repository_dispatch" ]; then
+            REF="${{ github.event.client_payload.ref }}"
+            REPO="${{ github.event.client_payload.repo }}"
+          else
+            REF="main"
+            REPO="pulseengine/rules_wasm_component"
+          fi
+
+          # Default repo if not specified
+          REPO="${REPO:-pulseengine/rules_wasm_component}"
+
+          echo "ref=$REF" >> $GITHUB_OUTPUT
+          echo "repo=$REPO" >> $GITHUB_OUTPUT
+          echo "Testing against $REPO@$REF"
+
+      - name: Checkout rules_wasm_component
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ steps.rules-ref.outputs.repo }}
+          ref: ${{ steps.rules-ref.outputs.ref }}
+          path: rules_wasm_component
+
+      - name: Override MODULE.bazel to use local rules
+        run: |
+          # Replace git_override with local_path_override for testing
+          cat >> MODULE.bazel << 'EOF'
+
+          # Integration test override - use local checkout
+          local_path_override(
+              module_name = "rules_wasm_component",
+              path = "rules_wasm_component",
+          )
+          EOF
+
+          echo "=== Updated MODULE.bazel ==="
+          tail -20 MODULE.bazel
+
+      - name: Install Bazelisk
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            curl -LO https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+            chmod +x bazelisk-linux-amd64
+            sudo mv bazelisk-linux-amd64 /usr/local/bin/bazel
+          else
+            brew install bazelisk
+          fi
+
+      - name: Build all components
+        run: bazel build //...
+
+      - name: List built artifacts
+        run: |
+          echo "=== C Components ==="
+          bazel cquery --output=files '//c:all' 2>/dev/null || true
+          echo ""
+          echo "=== C++ Components ==="
+          bazel cquery --output=files '//cpp:all' 2>/dev/null || true
+          echo ""
+          echo "=== Rust Components ==="
+          bazel cquery --output=files '//rust:all' 2>/dev/null || true
+
+      - name: Install Wasmtime for testing
+        run: |
+          curl https://wasmtime.dev/install.sh -sSf | bash
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+
+      - name: Test Rust CLI components
+        run: |
+          echo "=== Testing hello_rust ==="
+          WASM_FILE=$(bazel cquery --output=files //rust:hello_rust 2>/dev/null | head -1)
+          $HOME/.wasmtime/bin/wasmtime run "$WASM_FILE"
+
+          echo ""
+          echo "=== Testing calculator ==="
+          WASM_FILE=$(bazel cquery --output=files //rust:calculator 2>/dev/null | head -1)
+          OUTPUT=$($HOME/.wasmtime/bin/wasmtime run "$WASM_FILE" 8 + 8)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -q "8 + 8 = 16"
+
+          echo ""
+          echo "=== Testing datetime ==="
+          WASM_FILE=$(bazel cquery --output=files //rust:datetime 2>/dev/null | head -1)
+          $HOME/.wasmtime/bin/wasmtime run "$WASM_FILE"
+
+      - name: Report success
+        if: success()
+        run: |
+          echo "✅ Integration test PASSED"
+          echo "Tested against: ${{ steps.rules-ref.outputs.repo }}@${{ steps.rules-ref.outputs.ref }}"
+
+      - name: Report failure
+        if: failure()
+        run: |
+          echo "❌ Integration test FAILED"
+          echo "Tested against: ${{ steps.rules-ref.outputs.repo }}@${{ steps.rules-ref.outputs.ref }}"
