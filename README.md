@@ -1,6 +1,7 @@
 # WebAssembly Component Model Examples
 
 [![CI](https://github.com/pulseengine/wasm-component-examples/actions/workflows/ci.yml/badge.svg)](https://github.com/pulseengine/wasm-component-examples/actions/workflows/ci.yml)
+[![Integration Test](https://github.com/pulseengine/wasm-component-examples/actions/workflows/integration-test.yml/badge.svg)](https://github.com/pulseengine/wasm-component-examples/actions/workflows/integration-test.yml)
 
 Examples demonstrating the [WebAssembly Component Model](https://component-model.bytecodealliance.org/) using [rules_wasm_component](https://github.com/pulseengine/rules_wasm_component) with Bazel.
 
@@ -10,6 +11,7 @@ Examples demonstrating the [WebAssembly Component Model](https://component-model
 |---------|----------|------|----------|-------------|
 | `//c:hello_c` | C | Library | debug, release | Exports `greeter` interface |
 | `//cpp:hello_cpp` | C++ | Library | debug, release | Exports `greeter` interface |
+| `//go:hello_go` | Go | CLI | release | Hello world with TinyGo |
 | `//rust:hello_rust` | Rust | CLI | - | Hello world CLI component |
 | `//rust:calculator` | Rust | CLI | - | Arithmetic calculator (`8 + 8`) |
 | `//rust:datetime` | Rust | CLI | - | Shows current date/time |

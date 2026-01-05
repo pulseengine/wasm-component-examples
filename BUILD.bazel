@@ -1,18 +1,20 @@
 """WebAssembly Component Model Examples
 
-Demonstrates building WASI components in C, C++, and Rust using
+Demonstrates building WASI components in C, C++, Go, and Rust using
 pulseengine/rules_wasm_component with Bazel.
 
 Examples:
   - C/C++: Library components with debug/release builds
+  - Go: Simple hello world component with TinyGo
   - Rust: CLI components (hello, calculator, datetime)
   - Rust: WASI-NN ML inference (YOLO object detection) with profiles
 
 Build all:
     bazel build //...
 
-Build release components only:
-    bazel build //:release_components
+Build specific language:
+    bazel build //rust:all
+    bazel build //go:all
 """
 
 package(default_visibility = ["//visibility:public"])
@@ -33,6 +35,11 @@ filegroup(
 )
 
 filegroup(
+    name = "go_components",
+    srcs = ["//go:all"],
+)
+
+filegroup(
     name = "rust_components",
     srcs = ["//rust:all"],
 )
@@ -43,6 +50,7 @@ filegroup(
     srcs = [
         ":c_components",
         ":cpp_components",
+        ":go_components",
         ":rust_components",
     ],
 )

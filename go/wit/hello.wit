@@ -1,0 +1,11 @@
+// Simple hello world interface for Go component
+package hello:go@1.0.0;
+
+interface greeter {
+    // Returns a greeting message
+    greet: func() -> string;
+}
+
+world hello-go {
+    export greeter;
+}

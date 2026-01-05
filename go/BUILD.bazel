@@ -1,0 +1,32 @@
+"""Go Hello World WASI Component
+
+Demonstrates building a Go WASI component using TinyGo.
+"""
+
+load("@rules_wasm_component//go:defs.bzl", "go_wasm_component")
+load("@rules_wasm_component//wit:defs.bzl", "wit_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# Define WIT interface for the Go component
+wit_library(
+    name = "hello_wit",
+    srcs = ["wit/hello.wit"],
+    package_name = "hello:go@1.0.0",
+    world = "hello-go",
+)
+
+# Simple Go hello world - CLI mode
+go_wasm_component(
+    name = "hello_go",
+    srcs = ["src/hello.go"],
+    go_mod = "go.mod",
+    go_sum = "go.sum",
+    optimization = "release",
+)
+
+# All Go components
+filegroup(
+    name = "all",
+    srcs = [":hello_go"],
+)
