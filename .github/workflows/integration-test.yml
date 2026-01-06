@@ -5,6 +5,16 @@ name: Integration Test
 # 1. Manually via workflow_dispatch with a rules_ref parameter
 # 2. Via repository_dispatch from rules_wasm_component PRs
 # 3. On a schedule to catch breaking changes early
+#
+# BREAKING CHANGE PROTOCOL:
+# When rules_wasm_component has breaking changes, create a branch in this repo
+# with the SAME NAME as the rules PR branch. The CI will automatically detect
+# and use the matching branch.
+#
+# Example:
+#   rules PR branch: feature/new-api
+#   examples branch: feature/new-api (create this with updated examples)
+#   CI will test rules:feature/new-api against examples:feature/new-api
 
 on:
   workflow_dispatch:
@@ -40,9 +50,6 @@ jobs:
         os: [ubuntu-latest, macos-latest]
 
     steps:
-      - name: Checkout examples
-        uses: actions/checkout@v4
-
       - name: Determine rules_wasm_component ref
         id: rules-ref
         run: |
@@ -63,7 +70,43 @@ jobs:
 
           echo "ref=$REF" >> $GITHUB_OUTPUT
           echo "repo=$REPO" >> $GITHUB_OUTPUT
-          echo "Testing against $REPO@$REF"
+
+      - name: Check for matching examples branch
+        id: examples-branch
+        run: |
+          RULES_BRANCH="${{ steps.rules-ref.outputs.ref }}"
+
+          echo "══════════════════════════════════════════════════════════"
+          echo "INTEGRATION TEST BRANCH RESOLUTION"
+          echo "══════════════════════════════════════════════════════════"
+          echo "Rules PR branch: $RULES_BRANCH"
+          echo "Checking examples repo for matching branch..."
+          echo ""
+
+          # Check if a matching branch exists in this repo
+          if git ls-remote --heads origin "$RULES_BRANCH" | grep -q "$RULES_BRANCH"; then
+            echo "✅ Found matching branch: $RULES_BRANCH"
+            echo "   Using examples branch: $RULES_BRANCH"
+            echo ""
+            echo "   This means the rules PR has breaking changes that require"
+            echo "   corresponding updates in the examples repo."
+            echo "branch=$RULES_BRANCH" >> $GITHUB_OUTPUT
+            echo "matched=true" >> $GITHUB_OUTPUT
+          else
+            echo "ℹ️  No matching branch found: $RULES_BRANCH"
+            echo "   Using examples branch: main"
+            echo ""
+            echo "   This is expected for non-breaking changes."
+            echo "branch=main" >> $GITHUB_OUTPUT
+            echo "matched=false" >> $GITHUB_OUTPUT
+          fi
+
+          echo "══════════════════════════════════════════════════════════"
+
+      - name: Checkout examples
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.examples-branch.outputs.branch }}
 
       - name: Checkout rules_wasm_component
         uses: actions/checkout@v4
@@ -137,11 +180,29 @@ jobs:
       - name: Report success
         if: success()
         run: |
-          echo "✅ Integration test PASSED"
-          echo "Tested against: ${{ steps.rules-ref.outputs.repo }}@${{ steps.rules-ref.outputs.ref }}"
+          echo "══════════════════════════════════════════════════════════"
+          echo "✅ INTEGRATION TEST PASSED"
+          echo "══════════════════════════════════════════════════════════"
+          echo "Rules:    ${{ steps.rules-ref.outputs.repo }}@${{ steps.rules-ref.outputs.ref }}"
+          echo "Examples: ${{ steps.examples-branch.outputs.branch }}"
+          if [ "${{ steps.examples-branch.outputs.matched }}" == "true" ]; then
+            echo ""
+            echo "Note: Used matching examples branch for breaking changes."
+          fi
+          echo "══════════════════════════════════════════════════════════"
 
       - name: Report failure
         if: failure()
         run: |
-          echo "❌ Integration test FAILED"
-          echo "Tested against: ${{ steps.rules-ref.outputs.repo }}@${{ steps.rules-ref.outputs.ref }}"
+          echo "══════════════════════════════════════════════════════════"
+          echo "❌ INTEGRATION TEST FAILED"
+          echo "══════════════════════════════════════════════════════════"
+          echo "Rules:    ${{ steps.rules-ref.outputs.repo }}@${{ steps.rules-ref.outputs.ref }}"
+          echo "Examples: ${{ steps.examples-branch.outputs.branch }}"
+          if [ "${{ steps.examples-branch.outputs.matched }}" == "false" ]; then
+            echo ""
+            echo "💡 TIP: If this is a breaking change, create a branch in the"
+            echo "   examples repo with the same name: ${{ steps.rules-ref.outputs.ref }}"
+            echo "   Update the examples to work with the new API, then re-run."
+          fi
+          echo "══════════════════════════════════════════════════════════"
