@@ -3,7 +3,7 @@
 Demonstrates building a C WASI component with debug and release variants.
 """
 
-load("@rules_wasm_component//cpp:defs.bzl", "cpp_component")
+load("@rules_wasm_component//cpp:defs.bzl", "cpp_component", "cpp_wasm_binary")
 load("@rules_wasm_component//wit:defs.bzl", "wit_library")
 
 package(default_visibility = ["//visibility:public"])
@@ -44,10 +44,18 @@ alias(
     actual = ":hello_c_release",
 )
 
+# CLI binary (runs directly with wasmtime)
+cpp_wasm_binary(
+    name = "hello_c_cli",
+    srcs = ["src/main.c"],
+    language = "c",
+)
+
 # All variants
 filegroup(
     name = "all",
     srcs = [
+        ":hello_c_cli",
         ":hello_c_debug",
         ":hello_c_release",
     ],
