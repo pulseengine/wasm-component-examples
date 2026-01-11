@@ -193,12 +193,14 @@ jobs:
           ### Components Included
 
           **C Components:**
-          - `hello_c_debug.wasm` - Debug build
-          - `hello_c_release.wasm` - Release build (optimized)
+          - `hello_c_cli.wasm` - CLI executable (runs with wasmtime)
+          - `hello_c_debug.wasm` - Library component (debug)
+          - `hello_c_release.wasm` - Library component (release)
 
           **C++ Components:**
-          - `hello_cpp_debug.wasm` - Debug build
-          - `hello_cpp_release.wasm` - Release build (optimized)
+          - `hello_cpp_cli.wasm` - CLI executable (runs with wasmtime)
+          - `hello_cpp_debug.wasm` - Library component (debug)
+          - `hello_cpp_release.wasm` - Library component (release)
 
           **Rust Components:**
           - `hello_rust.wasm` - Hello World CLI
@@ -219,6 +221,10 @@ jobs:
           ```bash
           # Install wasmtime
           curl https://wasmtime.dev/install.sh -sSf | bash
+
+          # Run C/C++ CLI examples
+          wasmtime run hello_c_cli.wasm
+          wasmtime run hello_cpp_cli.wasm
 
           # Run Rust CLI examples
           wasmtime run hello_rust.wasm

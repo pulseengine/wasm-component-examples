@@ -6,7 +6,7 @@ pulseengine/rules_wasm_component.
 
 module(
     name = "hello_wasm_components",
-    version = "0.1.0",
+    version = "0.2.0",
 )
 
 # Core dependency - WebAssembly Component Model rules
