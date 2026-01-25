@@ -21,6 +21,15 @@ git_override(
 )
 # RULES_WASM_COMPONENT_OVERRIDE_END
 
+# MoonBit language support (transitive dependency from rules_wasm_component)
+# Not in BCR yet, so use git_override
+bazel_dep(name = "rules_moonbit", version = "0.1.0")
+git_override(
+    module_name = "rules_moonbit",
+    remote = "https://github.com/pulseengine/rules_moonbit.git",
+    commit = "b5bbfe8ef1f87b42c77f168640817f67ed8758a3",
+)
+
 # Required transitive dependencies (pulled transitively by rules_wasm_component)
 bazel_dep(name = "rules_rust", version = "0.65.0")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
