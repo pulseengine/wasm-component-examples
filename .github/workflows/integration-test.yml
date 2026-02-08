@@ -117,18 +117,18 @@ jobs:
 
       - name: Override MODULE.bazel to use local rules
         run: |
-          # Replace git_override with local_path_override for testing
-          cat >> MODULE.bazel << 'EOF'
+          # Replace git_override with local_path_override between markers
+          # Using sed to replace (not append) to avoid duplicate overrides
+          sed -i.bak '/RULES_WASM_COMPONENT_OVERRIDE_START/,/RULES_WASM_COMPONENT_OVERRIDE_END/c\
+          # RULES_WASM_COMPONENT_OVERRIDE_START\
+          local_path_override(\
+              module_name = "rules_wasm_component",\
+              path = "rules_wasm_component",\
+          )\
+          # RULES_WASM_COMPONENT_OVERRIDE_END' MODULE.bazel
 
-          # Integration test override - use local checkout
-          local_path_override(
-              module_name = "rules_wasm_component",
-              path = "rules_wasm_component",
-          )
-          EOF
-
-          echo "=== Updated MODULE.bazel ==="
-          tail -20 MODULE.bazel
+          echo "=== Updated MODULE.bazel override block ==="
+          sed -n '/OVERRIDE_START/,/OVERRIDE_END/p' MODULE.bazel
 
       - name: Install Bazelisk
         run: |
