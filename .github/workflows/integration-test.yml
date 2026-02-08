@@ -127,6 +127,10 @@ jobs:
           )\
           # RULES_WASM_COMPONENT_OVERRIDE_END' MODULE.bazel
 
+          # Exclude rules_wasm_component from bazel build //...
+          # (it has its own MODULE.bazel and shouldn't be built as part of examples)
+          echo "rules_wasm_component" >> .bazelignore
+
           echo "=== Updated MODULE.bazel override block ==="
           sed -n '/OVERRIDE_START/,/OVERRIDE_END/p' MODULE.bazel
 
