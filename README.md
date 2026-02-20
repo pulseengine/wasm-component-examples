@@ -1,21 +1,35 @@
-# WebAssembly Component Model Examples
+<div align="center">
 
-[![CI](https://github.com/pulseengine/wasm-component-examples/actions/workflows/ci.yml/badge.svg)](https://github.com/pulseengine/wasm-component-examples/actions/workflows/ci.yml)
-[![Integration Test](https://github.com/pulseengine/wasm-component-examples/actions/workflows/integration-test.yml/badge.svg)](https://github.com/pulseengine/wasm-component-examples/actions/workflows/integration-test.yml)
+# wasm-component-examples
+
+<sup>Working examples for WebAssembly Component Model</sup>
+
+&nbsp;
+
+![Bazel](https://img.shields.io/badge/Bazel-43A047?style=flat-square&logo=bazel&logoColor=white&labelColor=1a1b27)
+![WebAssembly](https://img.shields.io/badge/WebAssembly-654FF0?style=flat-square&logo=webassembly&logoColor=white&labelColor=1a1b27)
+![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat-square&labelColor=1a1b27)
+
+</div>
+
+&nbsp;
 
 Examples demonstrating the [WebAssembly Component Model](https://component-model.bytecodealliance.org/) using [rules_wasm_component](https://github.com/pulseengine/rules_wasm_component) with Bazel.
 
+> [!NOTE]
+> Part of the PulseEngine toolchain. Demonstrates patterns used across the PulseEngine toolchain.
+
 ## Examples
 
-| Example | Language | Type | Profiles | Description |
-|---------|----------|------|----------|-------------|
-| `//c:hello_c` | C | Library | debug, release | Exports `greeter` interface |
-| `//cpp:hello_cpp` | C++ | Library | debug, release | Exports `greeter` interface |
-| `//go:hello_go` | Go | CLI | release | Hello world with TinyGo |
-| `//rust:hello_rust` | Rust | CLI | - | Hello world CLI component |
-| `//rust:calculator` | Rust | CLI | - | Arithmetic calculator (`8 + 8`) |
-| `//rust:datetime` | Rust | CLI | - | Shows current date/time |
-| `//rust:yolo_inference` | Rust | CLI + WASI-NN | debug, release | YOLO object detection |
+| Example | Language | Type | Description |
+|---------|----------|------|-------------|
+| `//c:hello_c` | C | Library | Exports `greeter` interface |
+| `//cpp:hello_cpp` | C++ | Library | Exports `greeter` interface |
+| `//go:hello_go` | Go | CLI | Hello world with TinyGo |
+| `//rust:hello_rust` | Rust | CLI | Hello world CLI component |
+| `//rust:calculator` | Rust | CLI | Arithmetic calculator |
+| `//rust:datetime` | Rust | CLI | Shows current date/time |
+| `//rust:yolo_inference` | Rust | CLI + WASI-NN | YOLO object detection |
 
 ## Prerequisites
 
@@ -65,46 +79,22 @@ wasmtime run --dir . -S cli -S nn -S nn-graph=onnx::./models/yolov8n \
   ./bus.jpg
 ```
 
-Output:
-```
-YOLO Object Detection Demo
----------------------------
-[1] Loading image...
-[2] Loading model...
-[3] Preprocessing image...
-[4] Creating execution context...
-[5] Running inference...
-[6] Reading output...
-[7] Post-processing...
-
-======================================================
-  Results: 5 detections
-======================================================
-  [ 1] person               87.2% @ pixel (...)
-  [ 2] bus                  85.1% @ pixel (...)
-```
-
 ## Project Structure
 
 ```
 .
 ├── c/                    # C hello world component
-│   ├── src/hello.c
-│   └── wit/hello.wit
 ├── cpp/                  # C++ hello world component
-│   ├── src/hello.cpp
-│   └── wit/hello.wit
 ├── rust/                 # Rust components
 │   ├── src/
 │   │   ├── main.rs           # hello_rust
 │   │   ├── calculator.rs     # calculator
 │   │   ├── datetime.rs       # datetime
-│   │   ├── lib.rs            # yolo component entry
 │   │   └── yolo_inference.rs # YOLO detection logic
 │   └── wit/yolo.wit
 ├── models/               # ONNX models (download separately)
-├── MODULE.bazel          # Bazel module definition
-└── BUILD.bazel           # Root build file
+├── MODULE.bazel
+└── BUILD.bazel
 ```
 
 ## Component Types
@@ -125,39 +115,21 @@ world hello-c {
 
 ### CLI Components (Rust)
 
-Export `wasi:cli/run` for direct execution with wasmtime:
-
-```wit
-world yolo-detection {
-    import wasi:nn/graph@0.2.0-rc-2024-10-28;
-    import wasi:nn/tensor@0.2.0-rc-2024-10-28;
-    import wasi:nn/inference@0.2.0-rc-2024-10-28;
-    // ... other imports
-    export wasi:cli/run@0.2.3;
-}
-```
+Export `wasi:cli/run` for direct execution with Wasmtime.
 
 ## CI/CD
-
-This repository uses GitHub Actions for:
 
 - **CI** (`ci.yml`): Builds all components on Linux and macOS, runs Rust CLI tests
 - **Release** (`release.yml`): Creates signed releases with provenance attestation
 
-### Creating a Release
-
-```bash
-# Tag and push to create a release
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-The release workflow will:
-1. Build all components
-2. Sign them with wasmsign2
-3. Create a GitHub release with artifacts
-4. Generate provenance attestation
-
 ## License
 
 Apache-2.0
+
+---
+
+<div align="center">
+
+<sub>Part of <a href="https://github.com/pulseengine">PulseEngine</a> &mdash; formally verified WebAssembly toolchain for safety-critical systems</sub>
+
+</div>
