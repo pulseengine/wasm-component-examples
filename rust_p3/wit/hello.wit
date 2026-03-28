@@ -1,0 +1,9 @@
+package hello:p3@1.0.0;
+
+interface greeting {
+    greet: func(name: string) -> string;
+}
+
+world hello-p3 {
+    export greeting;
+}

@@ -1,0 +1,26 @@
+"""Rust P3 async component example.
+
+Demonstrates building a WASI Preview 3 async component using
+wasi_version = "p3" which passes --async to wit-bindgen and uses
+the wit-bindgen crate runtime for async support.
+"""
+
+load("@rules_wasm_component//rust:defs.bzl", "rust_wasm_component_bindgen")
+load("@rules_wasm_component//wit:defs.bzl", "wit_library")
+
+package(default_visibility = ["//visibility:public"])
+
+wit_library(
+    name = "hello_p3_interfaces",
+    srcs = ["wit/hello.wit"],
+    package_name = "hello:p3",
+    world = "hello-p3",
+)
+
+rust_wasm_component_bindgen(
+    name = "hello_p3",
+    srcs = ["src/lib.rs"],
+    profiles = ["release"],
+    wasi_version = "p3",
+    wit = ":hello_p3_interfaces",
+)
