@@ -1,7 +1,7 @@
 """WebAssembly Component Model Examples
 
-Demonstrates building WASI components in C, C++, Go, and Rust using
-pulseengine/rules_wasm_component.
+Demonstrates building WASI components in C, C++, Go, Rust, and Rust P3 async
+using pulseengine/rules_wasm_component.
 """
 
 module(
@@ -25,7 +25,7 @@ bazel_dep(name = "rules_rust", version = "0.69.0")
 bazel_dep(name = "bazel_skylib", version = "1.9.0")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "rules_cc", version = "0.2.17")
-bazel_dep(name = "rules_go", version = "0.59.0")
+bazel_dep(name = "rules_go", version = "0.60.0")
 bazel_dep(name = "rules_oci", version = "2.3.0")
 bazel_dep(name = "fmt", version = "11.0.2")
 bazel_dep(name = "nlohmann_json", version = "3.11.3")
@@ -62,6 +62,9 @@ use_repo(
     "wasi_filesystem",
     "wasi_http",
     "wasi_io",
+    "wasi_nn",
+    "wasi_nn_v0_2_0_rc_2024_06_25",
+    "wasi_nn_v0_2_0_rc_2024_08_19",
     "wasi_random",
     "wasi_sockets",
 )
