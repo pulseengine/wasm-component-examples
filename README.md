@@ -30,6 +30,7 @@ Examples demonstrating the [WebAssembly Component Model](https://component-model
 | `//rust:calculator` | Rust | CLI | Arithmetic calculator |
 | `//rust:datetime` | Rust | CLI | Shows current date/time |
 | `//rust:yolo_inference` | Rust | CLI + WASI-NN | YOLO object detection |
+| `//rust_p3:hello_p3` | Rust | Library (P3) | Async greeting with WASI Preview 3 |
 
 ## Prerequisites
 
@@ -92,6 +93,9 @@ wasmtime run --dir . -S cli -S nn -S nn-graph=onnx::./models/yolov8n \
 │   │   ├── datetime.rs       # datetime
 │   │   └── yolo_inference.rs # YOLO detection logic
 │   └── wit/yolo.wit
+├── rust_p3/              # Rust P3 async component
+│   ├── src/lib.rs
+│   └── wit/hello.wit
 ├── models/               # ONNX models (download separately)
 ├── MODULE.bazel
 └── BUILD.bazel
@@ -121,6 +125,17 @@ Export `wasi:cli/run` for direct execution with Wasmtime.
 
 - **CI** (`ci.yml`): Builds all components on Linux and macOS, runs Rust CLI tests
 - **Release** (`release.yml`): Creates signed releases with provenance attestation
+
+## WASI Preview 3 (P3) Async Components
+
+The `rust_p3/` directory demonstrates building a WASI Preview 3 async component. Setting `wasi_version = "p3"` on a `rust_wasm_component_bindgen` target passes `--async` to wit-bindgen, making all exported trait methods `async fn`. This enables cooperative concurrency within the Component Model.
+
+```bash
+# Build the P3 async component
+bazel build //rust_p3:hello_p3
+```
+
+See `rust_p3/src/lib.rs` for the async implementation pattern.
 
 ## License
 
