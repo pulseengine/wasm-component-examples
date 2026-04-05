@@ -57,6 +57,48 @@ cpp_wasm_binary(
     language = "cpp",
 )
 
+# =============================================================================
+# Statistics Component — descriptive statistics on numeric data
+# =============================================================================
+
+wit_library(
+    name = "stats_wit",
+    srcs = ["wit/stats.wit"],
+    package_name = "math:stats@1.0.0",
+    world = "math-stats",
+)
+
+cpp_component(
+    name = "stats_debug",
+    srcs = ["src/stats.cpp"],
+    cxx_std = "c++20",
+    enable_exceptions = False,
+    enable_rtti = False,
+    language = "cpp",
+    optimize = False,
+    validate_wit = False,
+    wit = ":stats_wit",
+    world = "math-stats",
+)
+
+cpp_component(
+    name = "stats_release",
+    srcs = ["src/stats.cpp"],
+    cxx_std = "c++20",
+    enable_exceptions = False,
+    enable_rtti = False,
+    language = "cpp",
+    optimize = True,
+    validate_wit = False,
+    wit = ":stats_wit",
+    world = "math-stats",
+)
+
+alias(
+    name = "stats",
+    actual = ":stats_release",
+)
+
 # All variants
 filegroup(
     name = "all",
@@ -64,5 +106,7 @@ filegroup(
         ":hello_cpp_cli",
         ":hello_cpp_debug",
         ":hello_cpp_release",
+        ":stats_debug",
+        ":stats_release",
     ],
 )

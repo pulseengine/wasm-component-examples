@@ -44,6 +44,9 @@ jobs:
           echo ""
           echo "=== Rust Components ==="
           bazel cquery --output=files '//rust:all' 2>/dev/null || true
+          echo ""
+          echo "=== Rust P3 Components ==="
+          bazel cquery --output=files '//rust_p3:all' 2>/dev/null || true
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

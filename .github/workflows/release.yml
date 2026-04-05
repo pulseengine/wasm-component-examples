@@ -54,7 +54,7 @@ jobs:
           VERSION=${TAG_NAME#v}
           RELEASE_DIR="release-${VERSION}"
 
-          mkdir -p "${RELEASE_DIR}/c" "${RELEASE_DIR}/cpp" "${RELEASE_DIR}/rust"
+          mkdir -p "${RELEASE_DIR}/c" "${RELEASE_DIR}/cpp" "${RELEASE_DIR}/rust" "${RELEASE_DIR}/rust_p3"
 
           # Use bazel cquery to reliably find built WASM files
           echo "=== Collecting C components ==="
@@ -103,6 +103,25 @@ jobs:
               cp -L "$wasm_file" "${RELEASE_DIR}/rust/yolo_inference_${profile}.wasm"
             else
               echo "WARNING: Could not find yolo_inference_${profile}.wasm"
+            fi
+          done
+
+          echo "=== Collecting Rust P3 async components ==="
+          for target in text_processor concurrent_tasks; do
+            echo "Collecting ${target}..."
+            wasm_file=$(bazel cquery --output=files "//rust_p3:${target}" 2>/dev/null | grep '\.wasm$' | head -1)
+            if [ -n "$wasm_file" ] && [ -f "$wasm_file" ]; then
+              echo "Found: $wasm_file"
+              cp -L "$wasm_file" "${RELEASE_DIR}/rust_p3/${target}.wasm"
+            else
+              # Fallback: search in bazel-bin
+              alt_wasm=$(find bazel-bin/rust_p3 -name "${target}*wasm_base.wasm" -type f 2>/dev/null | head -1)
+              if [ -n "$alt_wasm" ]; then
+                echo "Found (alt): $alt_wasm"
+                cp -L "$alt_wasm" "${RELEASE_DIR}/rust_p3/${target}.wasm"
+              else
+                echo "WARNING: Could not find ${target}.wasm"
+              fi
             fi
           done
 
@@ -201,6 +220,8 @@ jobs:
           - `hello_cpp_cli.wasm` - CLI executable (runs with wasmtime)
           - `hello_cpp_debug.wasm` - Library component (debug)
           - `hello_cpp_release.wasm` - Library component (release)
+          - `stats_debug.wasm` - Descriptive statistics (debug)
+          - `stats_release.wasm` - Descriptive statistics (release)
 
           **Rust Components:**
           - `hello_rust.wasm` - Hello World CLI
@@ -208,6 +229,10 @@ jobs:
           - `datetime.wasm` - Date/time display
           - `yolo_inference_debug.wasm` - YOLO detection (debug)
           - `yolo_inference_release.wasm` - YOLO detection (release)
+
+          **Rust P3 Async Components:**
+          - `text_processor.wasm` - Async text analysis and transformation
+          - `concurrent_tasks.wasm` - Async mathematical computations (fibonacci, prime, collatz)
 
           ### Security
 

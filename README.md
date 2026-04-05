@@ -25,12 +25,14 @@ Examples demonstrating the [WebAssembly Component Model](https://component-model
 |---------|----------|------|-------------|
 | `//c:hello_c` | C | Library | Exports `greeter` interface |
 | `//cpp:hello_cpp` | C++ | Library | Exports `greeter` interface |
+| `//cpp:stats` | C++ | Library | Descriptive statistics (mean, median, percentile) |
 | `//go:hello_go` | Go | CLI | Hello world with TinyGo |
 | `//rust:hello_rust` | Rust | CLI | Hello world CLI component |
 | `//rust:calculator` | Rust | CLI | Arithmetic calculator |
 | `//rust:datetime` | Rust | CLI | Shows current date/time |
 | `//rust:yolo_inference` | Rust | CLI + WASI-NN | YOLO object detection |
-| `//rust_p3:hello_p3` | Rust | Library (P3) | Async greeting with WASI Preview 3 |
+| `//rust_p3:text_processor` | Rust | Library (P3) | Async text analysis and transformation |
+| `//rust_p3:concurrent_tasks` | Rust | Library (P3) | Async math computations (fibonacci, prime, collatz) |
 
 ## Prerequisites
 
@@ -93,9 +95,13 @@ wasmtime run --dir . -S cli -S nn -S nn-graph=onnx::./models/yolov8n \
 │   │   ├── datetime.rs       # datetime
 │   │   └── yolo_inference.rs # YOLO detection logic
 │   └── wit/yolo.wit
-├── rust_p3/              # Rust P3 async component
-│   ├── src/lib.rs
-│   └── wit/hello.wit
+├── rust_p3/              # Rust P3 async components
+│   ├── src/
+│   │   ├── text_processor.rs  # text analysis & transformation
+│   │   └── concurrent.rs      # math computations (fib, prime, collatz)
+│   └── wit/
+│       ├── text_processor.wit
+│       └── concurrent.wit
 ├── models/               # ONNX models (download separately)
 ├── MODULE.bazel
 └── BUILD.bazel
@@ -128,14 +134,26 @@ Export `wasi:cli/run` for direct execution with Wasmtime.
 
 ## WASI Preview 3 (P3) Async Components
 
-The `rust_p3/` directory demonstrates building a WASI Preview 3 async component. Setting `wasi_version = "p3"` on a `rust_wasm_component_bindgen` target passes `--async` to wit-bindgen, making all exported trait methods `async fn`. This enables cooperative concurrency within the Component Model.
+The `rust_p3/` directory demonstrates WASI Preview 3 async components. Setting `wasi_version = "p3"` on a `rust_wasm_component_bindgen` target passes `--async` to wit-bindgen, making all exported trait methods `async fn`. This enables cooperative concurrency within the Component Model.
+
+### Text Processor (`//rust_p3:text_processor`)
+
+Exports two async interfaces:
+- **analyzer** — `analyze()` returns stats (word count, unique words, avg length), `word_frequencies()` returns sorted frequency table, `search_positions()` finds pattern occurrences
+- **transformer** — `transform()` for case/reverse/title-case, `caesar_cipher()` for shift ciphers, `replace_all()` for substitution
+
+### Concurrent Tasks (`//rust_p3:concurrent_tasks`)
+
+Exports async mathematical functions designed for concurrent dispatch:
+- `fibonacci(n)`, `factorial(n)`, `is_prime(n)`, `collatz_steps(n)`
+- `compute_batch(numbers)` — runs fibonacci, prime check, and collatz on every input
 
 ```bash
-# Build the P3 async component
-bazel build //rust_p3:hello_p3
+# Build all P3 components
+bazel build //rust_p3:all
 ```
 
-See `rust_p3/src/lib.rs` for the async implementation pattern.
+See `rust_p3/src/text_processor.rs` and `rust_p3/src/concurrent.rs` for the async implementation pattern using `#[cfg(target_arch)]` gates.
 
 ## License
 

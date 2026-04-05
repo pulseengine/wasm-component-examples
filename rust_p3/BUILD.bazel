@@ -1,8 +1,12 @@
-"""Rust P3 async component example.
+"""Rust P3 async component examples.
 
-Demonstrates building a WASI Preview 3 async component using
-wasi_version = "p3" which passes --async to wit-bindgen and uses
-the wit-bindgen crate runtime for async support.
+Demonstrates WASI Preview 3 async components. Setting wasi_version = "p3"
+passes --async to wit-bindgen, making all exported trait methods async fn.
+This enables cooperative concurrency within the Component Model.
+
+Components:
+    text_processor  — async text analysis and transformation
+    concurrent_tasks — async mathematical computations (fibonacci, prime, collatz)
 """
 
 load("@rules_wasm_component//rust:defs.bzl", "rust_wasm_component_bindgen")
@@ -10,17 +14,49 @@ load("@rules_wasm_component//wit:defs.bzl", "wit_library")
 
 package(default_visibility = ["//visibility:public"])
 
+# =============================================================================
+# Text Processor — async text analysis and transformation
+# =============================================================================
+
 wit_library(
-    name = "hello_p3_interfaces",
-    srcs = ["wit/hello.wit"],
-    package_name = "hello:p3",
-    world = "hello-p3",
+    name = "text_processor_interfaces",
+    srcs = ["wit/text_processor.wit"],
+    package_name = "text:processor",
+    world = "text-processor",
 )
 
 rust_wasm_component_bindgen(
-    name = "hello_p3",
-    srcs = ["src/lib.rs"],
+    name = "text_processor",
+    srcs = ["src/text_processor.rs"],
     profiles = ["release"],
     wasi_version = "p3",
-    wit = ":hello_p3_interfaces",
+    wit = ":text_processor_interfaces",
+)
+
+# =============================================================================
+# Concurrent Tasks — async mathematical computations
+# =============================================================================
+
+wit_library(
+    name = "concurrent_interfaces",
+    srcs = ["wit/concurrent.wit"],
+    package_name = "compute:concurrent",
+    world = "concurrent-tasks",
+)
+
+rust_wasm_component_bindgen(
+    name = "concurrent_tasks",
+    srcs = ["src/concurrent.rs"],
+    profiles = ["release"],
+    wasi_version = "p3",
+    wit = ":concurrent_interfaces",
+)
+
+# All P3 components
+filegroup(
+    name = "all",
+    srcs = [
+        ":concurrent_tasks",
+        ":text_processor",
+    ],
 )
