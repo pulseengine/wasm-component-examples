@@ -44,6 +44,11 @@ filegroup(
     srcs = ["//rust:all"],
 )
 
+filegroup(
+    name = "rust_p3_components",
+    srcs = ["//rust_p3:all"],
+)
+
 # All components (for CI)
 filegroup(
     name = "all_components",
@@ -52,5 +57,6 @@ filegroup(
         ":cpp_components",
         ":go_components",
         ":rust_components",
+        ":rust_p3_components",
     ],
 )

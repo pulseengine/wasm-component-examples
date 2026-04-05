@@ -1,0 +1,26 @@
+package math:stats@1.0.0;
+
+/// Descriptive statistics on numeric data.
+interface statistics {
+    record summary {
+        count: u32,
+        sum: f64,
+        mean: f64,
+        min-val: f64,
+        max-val: f64,
+        variance: f64,
+    }
+
+    /// Compute descriptive statistics for a list of values.
+    describe: func(values: list<f64>) -> summary;
+
+    /// Compute the median (middle value of sorted data).
+    median: func(values: list<f64>) -> f64;
+
+    /// Compute the p-th percentile (p in 0..100).
+    percentile: func(values: list<f64>, p: f64) -> f64;
+}
+
+world math-stats {
+    export statistics;
+}

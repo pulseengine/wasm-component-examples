@@ -1,0 +1,45 @@
+package text:processor@1.0.0;
+
+/// Text analysis — word counts, frequencies, pattern search.
+interface analyzer {
+    record text-stats {
+        char-count: u32,
+        word-count: u32,
+        line-count: u32,
+        unique-word-count: u32,
+        avg-word-length: f32,
+    }
+
+    record word-entry {
+        word: string,
+        count: u32,
+    }
+
+    /// Full statistical analysis of a text.
+    analyze: func(text: string) -> text-stats;
+
+    /// Word frequency table, sorted descending by count.
+    word-frequencies: func(text: string) -> list<word-entry>;
+
+    /// Byte positions where pattern occurs in text.
+    search-positions: func(text: string, pattern: string) -> list<u32>;
+}
+
+/// Text transformation — case, reversal, cipher, substitution.
+interface transformer {
+    enum transform-mode {
+        uppercase,
+        lowercase,
+        reverse,
+        title-case,
+    }
+
+    transform: func(text: string, mode: transform-mode) -> string;
+    caesar-cipher: func(text: string, shift: s32) -> string;
+    replace-all: func(text: string, pattern: string, replacement: string) -> string;
+}
+
+world text-processor {
+    export analyzer;
+    export transformer;
+}
