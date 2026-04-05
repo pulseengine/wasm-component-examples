@@ -54,7 +54,7 @@ jobs:
           VERSION=${TAG_NAME#v}
           RELEASE_DIR="release-${VERSION}"
 
-          mkdir -p "${RELEASE_DIR}/c" "${RELEASE_DIR}/cpp" "${RELEASE_DIR}/rust" "${RELEASE_DIR}/rust_p3"
+          mkdir -p "${RELEASE_DIR}/c" "${RELEASE_DIR}/cpp" "${RELEASE_DIR}/go" "${RELEASE_DIR}/rust" "${RELEASE_DIR}/rust_p3"
 
           # Use bazel cquery to reliably find built WASM files
           echo "=== Collecting C components ==="
@@ -70,6 +70,14 @@ jobs:
             if [[ "$f" == *.wasm ]]; then
               echo "Found: $f"
               cp "$f" "${RELEASE_DIR}/cpp/"
+            fi
+          done
+
+          echo "=== Collecting Go components ==="
+          for f in $(bazel cquery --output=files '//go:all' 2>/dev/null); do
+            if [[ "$f" == *.wasm ]]; then
+              echo "Found: $f"
+              cp "$f" "${RELEASE_DIR}/go/"
             fi
           done
 
@@ -222,6 +230,9 @@ jobs:
           - `hello_cpp_release.wasm` - Library component (release)
           - `stats_debug.wasm` - Descriptive statistics (debug)
           - `stats_release.wasm` - Descriptive statistics (release)
+
+          **Go Components:**
+          - `hello_go.wasm` - Hello world with TinyGo
 
           **Rust Components:**
           - `hello_rust.wasm` - Hello World CLI
