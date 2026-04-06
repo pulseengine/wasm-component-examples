@@ -94,3 +94,60 @@ jobs:
         run: |
           WASM_FILE=$(bazel cquery --output=files //rust:datetime 2>/dev/null | head -1)
           wasmtime run "$WASM_FILE"
+
+  test-p3-cli:
+    name: Test P3 Composed CLI
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Bazelisk
+        run: |
+          curl -LO https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64
+          chmod +x bazelisk-linux-amd64
+          sudo mv bazelisk-linux-amd64 /usr/local/bin/bazel
+
+      - name: Install Wasmtime
+        run: |
+          curl https://wasmtime.dev/install.sh -sSf | bash
+          echo "$HOME/.wasmtime/bin" >> $GITHUB_PATH
+
+      - name: Build P3 composed CLI
+        run: bazel build //rust_p3:p3_cli
+
+      - name: Test analyze
+        run: |
+          WASM_FILE=$(bazel cquery --output=files //rust_p3:p3_cli 2>/dev/null | head -1)
+          OUTPUT=$(wasmtime run -W component-model-async=y "$WASM_FILE" analyze hello world)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -q "words=2"
+
+      - name: Test fibonacci
+        run: |
+          WASM_FILE=$(bazel cquery --output=files //rust_p3:p3_cli 2>/dev/null | head -1)
+          OUTPUT=$(wasmtime run -W component-model-async=y "$WASM_FILE" fibonacci 10)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -q "fibonacci(10) = 55"
+
+      - name: Test transform
+        run: |
+          WASM_FILE=$(bazel cquery --output=files //rust_p3:p3_cli 2>/dev/null | head -1)
+          OUTPUT=$(wasmtime run -W component-model-async=y "$WASM_FILE" transform uppercase hello)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -q "HELLO"
+
+      - name: Test prime
+        run: |
+          WASM_FILE=$(bazel cquery --output=files //rust_p3:p3_cli 2>/dev/null | head -1)
+          OUTPUT=$(wasmtime run -W component-model-async=y "$WASM_FILE" prime 17)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -q "17 is prime"
+
+      - name: Test batch
+        run: |
+          WASM_FILE=$(bazel cquery --output=files //rust_p3:p3_cli 2>/dev/null | head -1)
+          OUTPUT=$(wasmtime run -W component-model-async=y "$WASM_FILE" batch 5 10)
+          echo "$OUTPUT"
+          echo "$OUTPUT" | grep -q "fibonacci"

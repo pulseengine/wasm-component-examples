@@ -115,7 +115,7 @@ jobs:
           done
 
           echo "=== Collecting Rust P3 async components ==="
-          for target in text_processor concurrent_tasks; do
+          for target in text_processor concurrent_tasks p3_cli; do
             echo "Collecting ${target}..."
             wasm_file=$(bazel cquery --output=files "//rust_p3:${target}" 2>/dev/null | grep '\.wasm$' | head -1)
             if [ -n "$wasm_file" ] && [ -f "$wasm_file" ]; then
@@ -123,7 +123,7 @@ jobs:
               cp -L "$wasm_file" "${RELEASE_DIR}/rust_p3/${target}.wasm"
             else
               # Fallback: search in bazel-bin
-              alt_wasm=$(find bazel-bin/rust_p3 -name "${target}*wasm_base.wasm" -type f 2>/dev/null | head -1)
+              alt_wasm=$(find bazel-bin/rust_p3 -name "${target}*.wasm" -type f 2>/dev/null | head -1)
               if [ -n "$alt_wasm" ]; then
                 echo "Found (alt): $alt_wasm"
                 cp -L "$alt_wasm" "${RELEASE_DIR}/rust_p3/${target}.wasm"
@@ -244,6 +244,7 @@ jobs:
           **Rust P3 Async Components:**
           - `text_processor.wasm` - Async text analysis and transformation
           - `concurrent_tasks.wasm` - Async mathematical computations (fibonacci, prime, collatz)
+          - `p3_cli.wasm` - Composed CLI runner (text_processor + concurrent_tasks via wac)
 
           ### Security
 
@@ -266,6 +267,12 @@ jobs:
           wasmtime run hello_rust.wasm
           wasmtime run calculator.wasm 8 + 8
           wasmtime run datetime.wasm
+
+          # Run P3 composed CLI (requires wasmtime with async support)
+          wasmtime run -W component-model-async=y p3_cli.wasm analyze "hello world"
+          wasmtime run -W component-model-async=y p3_cli.wasm fibonacci 10
+          wasmtime run -W component-model-async=y p3_cli.wasm transform uppercase "hello"
+          wasmtime run -W component-model-async=y p3_cli.wasm batch 5 10 15
 
           # Run YOLO detection (requires ONNX model)
           wasmtime run --dir . -S cli -S nn -S nn-graph=onnx::./models/yolov8n \
