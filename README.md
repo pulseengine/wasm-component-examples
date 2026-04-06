@@ -33,6 +33,7 @@ Examples demonstrating the [WebAssembly Component Model](https://component-model
 | `//rust:yolo_inference` | Rust | CLI + WASI-NN | YOLO object detection |
 | `//rust_p3:text_processor` | Rust | Library (P3) | Async text analysis and transformation |
 | `//rust_p3:concurrent_tasks` | Rust | Library (P3) | Async math computations (fibonacci, prime, collatz) |
+| `//rust_p3:p3_cli` | Rust | CLI (composed) | Runner composed with text_processor + concurrent_tasks via wac |
 
 ## Prerequisites
 
@@ -95,13 +96,15 @@ wasmtime run --dir . -S cli -S nn -S nn-graph=onnx::./models/yolov8n \
 │   │   ├── datetime.rs       # datetime
 │   │   └── yolo_inference.rs # YOLO detection logic
 │   └── wit/yolo.wit
-├── rust_p3/              # Rust P3 async components
+├── rust_p3/              # Rust P3 async components + composed CLI
 │   ├── src/
 │   │   ├── text_processor.rs  # text analysis & transformation
-│   │   └── concurrent.rs      # math computations (fib, prime, collatz)
+│   │   ├── concurrent.rs      # math computations (fib, prime, collatz)
+│   │   └── cli_runner.rs      # CLI runner (imports P3 interfaces)
 │   └── wit/
 │       ├── text_processor.wit
-│       └── concurrent.wit
+│       ├── concurrent.wit
+│       └── cli_runner.wit     # imports P3 + WASI CLI interfaces
 ├── models/               # ONNX models (download separately)
 ├── MODULE.bazel
 └── BUILD.bazel
@@ -148,9 +151,19 @@ Exports async mathematical functions designed for concurrent dispatch:
 - `fibonacci(n)`, `factorial(n)`, `is_prime(n)`, `collatz_steps(n)`
 - `compute_batch(numbers)` — runs fibonacci, prime check, and collatz on every input
 
+### Composed CLI (`//rust_p3:p3_cli`)
+
+A CLI runner component composed with the P3 libraries via `wac_plug`. Demonstrates the full component model workflow: build library components, build a CLI runner that imports their interfaces, compose with `wac` into a single runnable binary.
+
 ```bash
-# Build all P3 components
-bazel build //rust_p3:all
+# Build the composed CLI
+bazel build //rust_p3:p3_cli
+
+# Run (requires wasmtime with component-model-async support)
+wasmtime run -W component-model-async=y bazel-bin/rust_p3/p3_cli.wasm analyze "the quick brown fox"
+wasmtime run -W component-model-async=y bazel-bin/rust_p3/p3_cli.wasm fibonacci 10
+wasmtime run -W component-model-async=y bazel-bin/rust_p3/p3_cli.wasm transform uppercase "hello world"
+wasmtime run -W component-model-async=y bazel-bin/rust_p3/p3_cli.wasm batch 5 10 15
 ```
 
 See `rust_p3/src/text_processor.rs` and `rust_p3/src/concurrent.rs` for the async implementation pattern using `#[cfg(target_arch)]` gates.

@@ -1,0 +1,21 @@
+package cli:p3runner@1.0.0;
+
+world p3-runner {
+    // P3 component interfaces (fulfilled by wac composition)
+    import text:processor/analyzer@1.0.0;
+    import text:processor/transformer@1.0.0;
+    import compute:concurrent/tasks@1.0.0;
+
+    // WASI CLI imports for args, stdout, I/O
+    import wasi:cli/environment@0.2.3;
+    import wasi:cli/exit@0.2.3;
+    import wasi:cli/stdin@0.2.3;
+    import wasi:cli/stdout@0.2.3;
+    import wasi:cli/stderr@0.2.3;
+    import wasi:io/streams@0.2.3;
+    import wasi:io/poll@0.2.3;
+    import wasi:clocks/monotonic-clock@0.2.3;
+
+    // CLI entry point
+    export wasi:cli/run@0.2.3;
+}

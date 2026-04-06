@@ -5,11 +5,14 @@ passes --async to wit-bindgen, making all exported trait methods async fn.
 This enables cooperative concurrency within the Component Model.
 
 Components:
-    text_processor  — async text analysis and transformation
-    concurrent_tasks — async mathematical computations (fibonacci, prime, collatz)
+    text_processor    — async text analysis and transformation
+    concurrent_tasks  — async mathematical computations
+    p3_runner         — CLI runner that imports the above interfaces
+    p3_cli            — composed CLI (runner + text_processor + concurrent_tasks)
 """
 
 load("@rules_wasm_component//rust:defs.bzl", "rust_wasm_component_bindgen")
+load("@rules_wasm_component//wac:defs.bzl", "wac_plug")
 load("@rules_wasm_component//wit:defs.bzl", "wit_library")
 
 package(default_visibility = ["//visibility:public"])
@@ -52,11 +55,53 @@ rust_wasm_component_bindgen(
     wit = ":concurrent_interfaces",
 )
 
+# =============================================================================
+# CLI Runner — imports P3 interfaces, exports wasi:cli/run
+# =============================================================================
+
+wit_library(
+    name = "cli_runner_interfaces",
+    srcs = ["wit/cli_runner.wit"],
+    deps = [
+        ":text_processor_interfaces",
+        ":concurrent_interfaces",
+        "@wasi_cli//:cli",
+        "@wasi_clocks//:clocks",
+        "@wasi_filesystem//:filesystem",
+        "@wasi_io//:streams",
+        "@wasi_random//:random",
+        "@wasi_sockets//:sockets",
+    ],
+    package_name = "cli:p3runner",
+    world = "p3-runner",
+)
+
+rust_wasm_component_bindgen(
+    name = "p3_runner",
+    srcs = ["src/cli_runner.rs"],
+    profiles = ["release"],
+    wit = ":cli_runner_interfaces",
+)
+
+# =============================================================================
+# Composed CLI — runner + text_processor + concurrent_tasks via wac
+# =============================================================================
+
+wac_plug(
+    name = "p3_cli",
+    plugs = [
+        ":text_processor",
+        ":concurrent_tasks",
+    ],
+    socket = ":p3_runner",
+)
+
 # All P3 components
 filegroup(
     name = "all",
     srcs = [
         ":concurrent_tasks",
+        ":p3_cli",
         ":text_processor",
     ],
 )
