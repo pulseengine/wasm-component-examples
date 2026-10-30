@@ -305,6 +305,6 @@ jobs:
           make_latest: true
 
       - name: Generate Provenance Attestation
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: ${{ steps.collect.outputs.archive_name }}
