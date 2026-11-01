@@ -1,4 +1,11 @@
 version: 2
+# All github-actions pins in / land as one PR (#14-#17 were four separate PRs
+# for four independent pins).
+groups:
+  github-actions-all:
+    package-ecosystem: github-actions
+    patterns:
+      - "*"
 updates:
   - package-ecosystem: github-actions
     directory: /
