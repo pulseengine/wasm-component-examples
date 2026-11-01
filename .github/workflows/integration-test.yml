@@ -104,12 +104,12 @@ jobs:
           echo "══════════════════════════════════════════════════════════"
 
       - name: Checkout examples
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ steps.examples-branch.outputs.branch }}
 
       - name: Checkout rules_wasm_component
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: ${{ steps.rules-ref.outputs.repo }}
           ref: ${{ steps.rules-ref.outputs.ref }}
