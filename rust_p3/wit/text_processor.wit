@@ -16,13 +16,13 @@ interface analyzer {
     }
 
     /// Full statistical analysis of a text.
-    analyze: func(text: string) -> text-stats;
+    analyze: async func(text: string) -> text-stats;
 
     /// Word frequency table, sorted descending by count.
-    word-frequencies: func(text: string) -> list<word-entry>;
+    word-frequencies: async func(text: string) -> list<word-entry>;
 
     /// Byte positions where pattern occurs in text.
-    search-positions: func(text: string, pattern: string) -> list<u32>;
+    search-positions: async func(text: string, pattern: string) -> list<u32>;
 }
 
 /// Text transformation — case, reversal, cipher, substitution.
@@ -34,9 +34,9 @@ interface transformer {
         title-case,
     }
 
-    transform: func(text: string, mode: transform-mode) -> string;
-    caesar-cipher: func(text: string, shift: s32) -> string;
-    replace-all: func(text: string, pattern: string, replacement: string) -> string;
+    transform: async func(text: string, mode: transform-mode) -> string;
+    caesar-cipher: async func(text: string, shift: s32) -> string;
+    replace-all: async func(text: string, pattern: string, replacement: string) -> string;
 }
 
 world text-processor {

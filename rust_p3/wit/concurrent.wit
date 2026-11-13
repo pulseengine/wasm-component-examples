@@ -9,19 +9,19 @@ interface tasks {
     }
 
     /// Compute the nth Fibonacci number (iterative, saturating).
-    fibonacci: func(n: u32) -> u64;
+    fibonacci: async func(n: u32) -> u64;
 
     /// Compute n! (saturating).
-    factorial: func(n: u32) -> u64;
+    factorial: async func(n: u32) -> u64;
 
     /// Primality test using 6k +/- 1 trial division.
-    is-prime: func(n: u64) -> bool;
+    is-prime: async func(n: u64) -> bool;
 
     /// Count steps for n to reach 1 under the Collatz map.
-    collatz-steps: func(n: u64) -> u32;
+    collatz-steps: async func(n: u64) -> u32;
 
     /// Run fibonacci, is-prime, and collatz-steps on every input.
-    compute-batch: func(numbers: list<u64>) -> list<computation-result>;
+    compute-batch: async func(numbers: list<u64>) -> list<computation-result>;
 }
 
 world concurrent-tasks {

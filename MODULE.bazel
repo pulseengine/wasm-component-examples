@@ -47,7 +47,9 @@ rust.toolchain(
         "wasm32-wasip1",
         "wasm32-wasip2",
     ],
-    versions = ["1.91.1"],
+    # 1.100.0 ships wasm-component-ld 0.5.30, which parses `async func` types
+    # (rust_p3); 1.91.1's linker rejects them ("invalid leading byte (0x43)").
+    versions = ["1.100.0"],
 )
 use_repo(rust, "rust_toolchains")
 register_toolchains("@rust_toolchains//:all")

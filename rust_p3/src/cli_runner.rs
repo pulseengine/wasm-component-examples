@@ -4,6 +4,10 @@
 // interfaces and exports wasi:cli/run. It is composed with the P3
 // library components via wac to produce a single runnable binary.
 //
+// The imported functions are `async func`s, so each call returns a future.
+// `wasi:cli/run` is a sync export, so `run` drives the command to completion
+// with `wit_bindgen::block_on`.
+//
 // Usage (after composition):
 //   wasmtime run p3_cli.wasm analyze "the quick brown fox"
 //   wasmtime run p3_cli.wasm fibonacci 10
@@ -25,30 +29,34 @@ impl Guest for Component {
             return Err(());
         }
 
-        match args[1].as_str() {
-            "analyze" => cmd_analyze(&args[2..]),
-            "frequencies" => cmd_frequencies(&args[2..]),
-            "search" => cmd_search(&args[2..]),
-            "transform" => cmd_transform(&args[2..]),
-            "caesar" => cmd_caesar(&args[2..]),
-            "replace" => cmd_replace(&args[2..]),
-            "fibonacci" | "fib" => cmd_fibonacci(&args[2..]),
-            "factorial" | "fact" => cmd_factorial(&args[2..]),
-            "prime" => cmd_prime(&args[2..]),
-            "collatz" => cmd_collatz(&args[2..]),
-            "batch" => cmd_batch(&args[2..]),
-            other => {
-                eprintln!("Unknown command: {other}");
-                print_usage();
-                Err(())
-            }
+        wit_bindgen::block_on(dispatch(args))
+    }
+}
+
+async fn dispatch(args: Vec<String>) -> Result<(), ()> {
+    match args[1].as_str() {
+        "analyze" => cmd_analyze(&args[2..]).await,
+        "frequencies" => cmd_frequencies(&args[2..]).await,
+        "search" => cmd_search(&args[2..]).await,
+        "transform" => cmd_transform(&args[2..]).await,
+        "caesar" => cmd_caesar(&args[2..]).await,
+        "replace" => cmd_replace(&args[2..]).await,
+        "fibonacci" | "fib" => cmd_fibonacci(&args[2..]).await,
+        "factorial" | "fact" => cmd_factorial(&args[2..]).await,
+        "prime" => cmd_prime(&args[2..]).await,
+        "collatz" => cmd_collatz(&args[2..]).await,
+        "batch" => cmd_batch(&args[2..]).await,
+        other => {
+            eprintln!("Unknown command: {other}");
+            print_usage();
+            Err(())
         }
     }
 }
 
-fn cmd_analyze(args: &[String]) -> Result<(), ()> {
+async fn cmd_analyze(args: &[String]) -> Result<(), ()> {
     let text = args.join(" ");
-    let s = analyzer::analyze(&text);
+    let s = analyzer::analyze(text).await;
     println!(
         "chars={} words={} lines={} unique={} avg_len={:.1}",
         s.char_count, s.word_count, s.line_count, s.unique_word_count, s.avg_word_length
@@ -56,25 +64,25 @@ fn cmd_analyze(args: &[String]) -> Result<(), ()> {
     Ok(())
 }
 
-fn cmd_frequencies(args: &[String]) -> Result<(), ()> {
+async fn cmd_frequencies(args: &[String]) -> Result<(), ()> {
     let text = args.join(" ");
-    for e in &analyzer::word_frequencies(&text) {
+    for e in &analyzer::word_frequencies(text).await {
         println!("{}: {}", e.word, e.count);
     }
     Ok(())
 }
 
-fn cmd_search(args: &[String]) -> Result<(), ()> {
+async fn cmd_search(args: &[String]) -> Result<(), ()> {
     if args.len() < 2 {
         eprintln!("Usage: search <pattern> <text...>");
         return Err(());
     }
-    let positions = analyzer::search_positions(&args[1..].join(" "), &args[0]);
+    let positions = analyzer::search_positions(args[1..].join(" "), args[0].clone()).await;
     println!("{:?}", positions);
     Ok(())
 }
 
-fn cmd_transform(args: &[String]) -> Result<(), ()> {
+async fn cmd_transform(args: &[String]) -> Result<(), ()> {
     if args.len() < 2 {
         eprintln!("Usage: transform <mode> <text...>");
         return Err(());
@@ -89,61 +97,64 @@ fn cmd_transform(args: &[String]) -> Result<(), ()> {
             return Err(());
         }
     };
-    println!("{}", transformer::transform(&args[1..].join(" "), mode));
+    println!("{}", transformer::transform(args[1..].join(" "), mode).await);
     Ok(())
 }
 
-fn cmd_caesar(args: &[String]) -> Result<(), ()> {
+async fn cmd_caesar(args: &[String]) -> Result<(), ()> {
     if args.len() < 2 {
         eprintln!("Usage: caesar <shift> <text...>");
         return Err(());
     }
     let shift: i32 = args[0].parse().unwrap_or(0);
-    println!("{}", transformer::caesar_cipher(&args[1..].join(" "), shift));
+    println!("{}", transformer::caesar_cipher(args[1..].join(" "), shift).await);
     Ok(())
 }
 
-fn cmd_replace(args: &[String]) -> Result<(), ()> {
+async fn cmd_replace(args: &[String]) -> Result<(), ()> {
     if args.len() < 3 {
         eprintln!("Usage: replace <pattern> <replacement> <text...>");
         return Err(());
     }
-    println!("{}", transformer::replace_all(&args[2..].join(" "), &args[0], &args[1]));
+    println!(
+        "{}",
+        transformer::replace_all(args[2..].join(" "), args[0].clone(), args[1].clone()).await
+    );
     Ok(())
 }
 
-fn cmd_fibonacci(args: &[String]) -> Result<(), ()> {
+async fn cmd_fibonacci(args: &[String]) -> Result<(), ()> {
     let n: u32 = args.first().and_then(|s| s.parse().ok()).unwrap_or(10);
-    println!("fibonacci({}) = {}", n, tasks::fibonacci(n));
+    println!("fibonacci({}) = {}", n, tasks::fibonacci(n).await);
     Ok(())
 }
 
-fn cmd_factorial(args: &[String]) -> Result<(), ()> {
+async fn cmd_factorial(args: &[String]) -> Result<(), ()> {
     let n: u32 = args.first().and_then(|s| s.parse().ok()).unwrap_or(10);
-    println!("factorial({}) = {}", n, tasks::factorial(n));
+    println!("factorial({}) = {}", n, tasks::factorial(n).await);
     Ok(())
 }
 
-fn cmd_prime(args: &[String]) -> Result<(), ()> {
+async fn cmd_prime(args: &[String]) -> Result<(), ()> {
     let n: u64 = args.first().and_then(|s| s.parse().ok()).unwrap_or(17);
-    let result = if tasks::is_prime(n) { "prime" } else { "not prime" };
+    let result = if tasks::is_prime(n).await { "prime" } else { "not prime" };
     println!("{n} is {result}");
     Ok(())
 }
 
-fn cmd_collatz(args: &[String]) -> Result<(), ()> {
+async fn cmd_collatz(args: &[String]) -> Result<(), ()> {
     let n: u64 = args.first().and_then(|s| s.parse().ok()).unwrap_or(27);
-    println!("collatz({}) = {} steps", n, tasks::collatz_steps(n));
+    println!("collatz({}) = {} steps", n, tasks::collatz_steps(n).await);
     Ok(())
 }
 
-fn cmd_batch(args: &[String]) -> Result<(), ()> {
+async fn cmd_batch(args: &[String]) -> Result<(), ()> {
     let numbers: Vec<u64> = args.iter().filter_map(|s| s.parse().ok()).collect();
     if numbers.is_empty() {
         eprintln!("Usage: batch <n1> <n2> ...");
         return Err(());
     }
-    for r in &tasks::compute_batch(&numbers) {
+    for r in &tasks::compute_batch(numbers).await {
         println!("{}: input={} output={}", r.task_name, r.input, r.output);
     }
     Ok(())
