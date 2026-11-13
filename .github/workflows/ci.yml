@@ -32,7 +32,17 @@ jobs:
           fi
 
       - name: Build all components
-        run: bazel build //...
+        # The rust_p3 *_bindings_host targets (and the *_wasm_lib_release_host
+        # libraries built on them) cannot compile async-typed WIT
+        # (pulseengine/rules_wasm_component#720); nothing here consumes them.
+        run: >-
+          bazel build -- //...
+          -//rust_p3:concurrent_tasks_bindings_host
+          -//rust_p3:text_processor_bindings_host
+          -//rust_p3:p3_runner_bindings_host
+          -//rust_p3:concurrent_tasks_wasm_lib_release_host
+          -//rust_p3:text_processor_wasm_lib_release_host
+          -//rust_p3:p3_runner_wasm_lib_release_host
 
       - name: List built artifacts
         run: |

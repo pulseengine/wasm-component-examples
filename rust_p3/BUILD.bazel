@@ -81,6 +81,9 @@ rust_wasm_component_bindgen(
     srcs = ["src/cli_runner.rs"],
     profiles = ["release"],
     wit = ":cli_runner_interfaces",
+    # The runner awaits the async imports from a sync wasi:cli/run export
+    # with wit_bindgen::block_on.
+    deps = ["@crates//:wit-bindgen"],
 )
 
 # =============================================================================
